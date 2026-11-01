@@ -49,15 +49,19 @@ void BackgroundManager::Init()
         CreateBlurredBackground(monitor, texture);
     });
 
-    m_RenderStageListener = Event::bus()->m_events.render.stage.listen([](eRenderStage stage)
+    m_RenderStageListener = Event::bus()->m_events.render.stage.listen([](const Event::SRenderStageEvent& event)
     {
-        if (stage != RENDER_POST_WALLPAPER)
+        if (event.stage != RENDER_POST_WALLPAPER || !event.context)
             return;
 
-        if (SharingBackground)
-            g_pHyprRenderer->m_renderPass.add(makeUnique<CBackgroundSharePassElement>());
+        auto& ctx = event.context->get();
 
-        auto monitor = g_pHyprRenderer->m_renderData.pMonitor.lock();
+        if (SharingBackground)
+            Render::IHyprRenderer::addPassElement(ctx, makeUnique<CBackgroundSharePassElement>());
+
+        auto monitor = event.monitor ? event.monitor : ctx.m_data.pMonitor.lock();
+        if (!monitor)
+            return;
         if (!monitor->m_layerSurfaceLayers[ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND].empty())
             return;
 
@@ -114,8 +118,8 @@ void BackgroundManager::CreateBlurredBackground(PHLMONITOR monitor, SP<Render::I
     auto blur_texture = BlurTextureWithDamage(1.0, &damage, tex, 8, 5)->getTexture();
     monitor_context->SetBlurredBackground(CopyTexture(blur_texture));
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
+    Render::GL::g_pHyprOpenGL->bindFramebuffer(GL_READ_FRAMEBUFFER, prev_read_fbo);
+    Render::GL::g_pHyprOpenGL->bindFramebuffer(GL_DRAW_FRAMEBUFFER, prev_draw_fbo);
 }
 
 void BackgroundManager::ShareBackground(PHLMONITOR monitor, SP<Render::ITexture> texture)
@@ -282,7 +286,7 @@ void BackgroundManager::CreateDefaultAeroReflectionMap()
     RenderShader(fb, nullptr, shader, nullptr, size);
 
     glColorMask(prev_color_mask[0], prev_color_mask[1], prev_color_mask[2], prev_color_mask[3]);
-    glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+    Render::GL::g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
 
     m_DefaultAeroReflectionMap = fb.getTexture();
 }

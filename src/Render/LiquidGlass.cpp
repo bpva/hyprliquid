@@ -19,7 +19,7 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
     static auto TINT_COLOR       = RuleOrConfigValue<CHyprColor>(ConfigManager::ConfigType::TINT_COLOR);
     static auto HIGHLIGHT_STYLE  = RuleOrConfigValue<Config::INTEGER>(ConfigManager::ConfigType::HIGHLIGHT_STYLE);
 
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    const float scale = RenderCtx().m_data.pMonitor->m_scale;
     const float rounding_power = data.roundingPower;
 
     int corner_radius = CORNER_RADIUS[client_context];
@@ -71,7 +71,7 @@ void RenderLiquidGlass(IFramebuffer& fb, const SP<ITexture>& texture, const CBox
             shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, 0.0, 0.0);
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_HAS_VDF_MAP, true);
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_VDF_MAP, 1);
-        glActiveTexture(GL_TEXTURE1);
+        Render::GL::g_pHyprOpenGL->setActiveTexture(GL_TEXTURE1);
         vdf_map->bind();
     }
     else

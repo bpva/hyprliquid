@@ -26,7 +26,7 @@ void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture
 
     auto tex = EnsureBlur(data.a, const_cast<CRegion*>(data.damage), texture, 2, 2);
 
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    const float scale = RenderCtx().m_data.pMonitor->m_scale;
 
     int corner_radius = CORNER_RADIUS[client_context];
     if (corner_radius < 0)
@@ -56,14 +56,14 @@ void RenderAero(IFramebuffer& fb, const SP<ITexture>& texture, const SP<ITexture
     if (reflection_map)
     {
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_REFLECTION_MAP, 1);
-        glActiveTexture(GL_TEXTURE1);
+        Render::GL::g_pHyprOpenGL->setActiveTexture(GL_TEXTURE1);
         reflection_map->bind();
     }
     if (mask)
     {
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, size.x / box.width, size.y / box.height);
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_MASK_TEXTURE, 2);
-        glActiveTexture(GL_TEXTURE2);
+        Render::GL::g_pHyprOpenGL->setActiveTexture(GL_TEXTURE2);
         mask->bind();
     }
     else

@@ -38,10 +38,12 @@ BackgroundShareProtocolResource::BackgroundShareProtocolResource(UP<CZhyprBackgr
         if (!client)
             for (const auto& window: Desktop::windowState()->windows())
             {
-                auto xdg_surface = window->m_xdgSurface;
-                if (!xdg_surface || !xdg_surface->good())
+                if (!window->backend().valid() || window->backend().type() != Desktop::View::eBackendType::WINDOW_BACKEND_WAYLAND)
                     continue;
-                if (xdg_surface->m_surface->id() == surface_id)
+                auto surface = window->backend().surface();
+                if (!surface)
+                    continue;
+                if (surface->id() == surface_id)
                 {
                     client = window.get();
                     position = window->layoutBox().pos();

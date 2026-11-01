@@ -10,7 +10,7 @@
 #include "Utils/ColorSchemeHelper.h"
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/plugins/HookSystem.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/debug/log/Logger.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/Compositor.hpp>
@@ -99,12 +99,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     {
         HyprlandAPI::addLuaFunction(handle, "hyprliquid", "placeholder", [](lua_State* L) { return 0; });
 
-        auto matches = HyprlandAPI::findFunctionsByName(handle, "Desktop4View7CWindow8roundingEv");
+        auto matches = HyprlandAPI::findFunctionsByName(handle, "Desktop4View19CWindowPresentation8roundingEv");
         if (!matches.empty())
         {
             auto& match = matches.front();
-            g_CWindowRoundingHook = HyprlandAPI::createFunctionHook(handle, match.address, (void*)HookCWindowRounding);
-            g_CWindowRoundingHook->hook();
+            g_CWindowPresentationRoundingHook = HyprlandAPI::createFunctionHook(handle, match.address, (void*)HookCWindowPresentationRounding);
+            g_CWindowPresentationRoundingHook->hook();
         }
     }
 
@@ -113,7 +113,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
 APICALL EXPORT void PLUGIN_EXIT()
 {
-    g_pHyprRenderer->m_renderPass.clear();
+    g_pHyprRenderer->context().m_pass.clear();
     ColorSchemeHelper::Destroy();
     BackgroundManager::Destroy();
     BackgroundManager::DestroyEGL();

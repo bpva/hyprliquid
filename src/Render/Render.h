@@ -3,9 +3,15 @@
 #include <hyprland/src/render/Framebuffer.hpp>
 #include <hyprland/src/render/Texture.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
+#include <hyprland/src/render/Renderer.hpp>
 
 using IFramebuffer = Render::IFramebuffer;
 using ITexture = Render::ITexture;
+
+inline Render::CRenderContext& RenderCtx()
+{
+    return g_pHyprRenderer->context();
+}
 
 void RenderShader(IFramebuffer& fb, const SP<ITexture>& texture, const SP<CShader>& shader, const Hyprutils::Math::CRegion* damage = nullptr, const Hyprutils::Math::Vector2D& viewport = {});
 

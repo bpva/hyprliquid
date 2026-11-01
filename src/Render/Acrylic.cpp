@@ -30,7 +30,7 @@ void RenderAcrylic(IFramebuffer& fb, const SP<ITexture>& texture, const SP<IText
         discard_alpha = data.currentLS->m_ruleApplicator->ignoreAlpha().valueOrDefault();
 
     auto tex = EnsureBlur(data.a, const_cast<CRegion*>(data.damage), texture, 4, 4);
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    const float scale = RenderCtx().m_data.pMonitor->m_scale;
 
     auto  tint_color = TINT_COLOR[client_context];
     float brightness = BRIGHTNESS[client_context];
@@ -59,7 +59,7 @@ void RenderAcrylic(IFramebuffer& fb, const SP<ITexture>& texture, const SP<IText
     {
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, size.x / box.width, size.y / box.height);
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_MASK_TEXTURE, 1);
-        glActiveTexture(GL_TEXTURE1);
+        Render::GL::g_pHyprOpenGL->setActiveTexture(GL_TEXTURE1);
         mask->bind();
     }
     else

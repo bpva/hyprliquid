@@ -1,11 +1,12 @@
 #include "ClientContext.h"
 #include <hyprland/protocols/wlr-layer-shell-unstable-v1.hpp>
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
 #include <hyprland/src/desktop/view/LayerSurface.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/desktop/state/LayerState.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/render/gl/GLTexture.hpp>
+#include <hyprland/src/render/OpenGL.hpp>
 
 UP<CHyprSignalListener> g_WindowOpened;
 UP<CHyprSignalListener> g_WindowClosed;
@@ -88,7 +89,12 @@ ClientContext::~ClientContext()
 {
     TextureChecksumReadback.reset();
     if (m_DownsampleFramebuffers)
+    {
         glDeleteFramebuffers(m_DownsampleFramebuffers->size(), m_DownsampleFramebuffers->data());
+        if (Render::GL::g_pHyprOpenGL)
+            for (const auto fb : *m_DownsampleFramebuffers)
+                Render::GL::g_pHyprOpenGL->onFramebufferDeleted(fb);
+    }
 }
 
 client_t ClientContext::GetClient()
@@ -154,7 +160,7 @@ void ClientContext::CreateJFAFramebuffers()
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex->m_texID, 0);
         tex->m_size = m_Size;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    Render::GL::g_pHyprOpenGL->bindFramebuffer(GL_FRAMEBUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 

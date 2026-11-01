@@ -7,7 +7,8 @@
 #include "Shaders/Shaders.h"
 #include "Utils/BackgroundManager.h"
 #include "Context/MonitorContext.h"
-#include <hyprland/src/desktop/view/Window.hpp>
+#include <hyprland/src/desktop/view/window/Window.hpp>
+#include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/protocols/LayerShell.hpp>
 #include <hyprland/src/protocols/XDGShell.hpp>
 #include <hyprland/src/xwayland/XSurface.hpp>
@@ -24,22 +25,22 @@ bool InCSurfacePassElementDraw = false;
 bool InCHyprOpenGLImplRenderTextureWithBlurInternal = false;
 SP<AsyncSSBOReadback> g_BlackDetectionReadback;
 
-void HookIElementRendererDrawSurface(Render::IElementRenderer* this_ptr, WP<CSurfacePassElement> element, const CRegion& damage)
+void HookIElementRendererDrawSurface(Render::IElementRenderer* this_ptr, Render::CRenderContext& ctx, WP<CSurfacePassElement> element, const CRegion& damage)
 {
     static auto HYPRLIQUID_ENABLED = CConfigValue<Config::BOOL>(std::string(ConfigManager::ConfigNames[ConfigManager::ConfigType::ENABLED]));
     static auto EFFECT             = RuleOrDefaultValue<Config::INTEGER>(ConfigManager::ConfigType::EFFECT, 0);
 
     if (!*HYPRLIQUID_ENABLED)
-        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, element, damage);
+        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, ctx, element, damage);
 
     if (!Shaders::IsInitialized)
-        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, element, damage);
+        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, ctx, element, damage);
 
     bool hyprliquid_enabled = false;
     auto& m_data = element->m_data;
 
     if (m_data.popup)
-        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, element, damage);
+        return IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, ctx, element, damage);
 
     if (m_data.pLS)
     {
@@ -73,15 +74,15 @@ void HookIElementRendererDrawSurface(Render::IElementRenderer* this_ptr, WP<CSur
     {
         InCSurfacePassElementDraw = true;
         CScopeGuard guard { []{ InCSurfacePassElementDraw = false; } };
-        IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, element, damage);
+        IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, ctx, element, damage);
         return;
     }
 
-    IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, element, damage);
+    IElementRendererDrawSurface_t(g_IElementRendererDrawSurfaceHook->m_original)(this_ptr, ctx, element, damage);
 }
 
 SP<ITexture> CLIENT_TEXTURE;
-void HookCHyprOpenGLImplRenderTextureWithBlurInternal(Render::GL::CHyprOpenGLImpl* this_ptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
+void HookCHyprOpenGLImplRenderTextureWithBlurInternal(Render::GL::CHyprOpenGLImpl* this_ptr, Render::CRenderContext& ctx, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
 {
     InCHyprOpenGLImplRenderTextureWithBlurInternal = true;
     CLIENT_TEXTURE = tex;
@@ -93,10 +94,10 @@ void HookCHyprOpenGLImplRenderTextureWithBlurInternal(Render::GL::CHyprOpenGLImp
             CLIENT_TEXTURE.reset();
         }
     };
-    CHyprOpenGLImplRenderTextureWithBlurInternal_t(g_CHyprOpenGLImplRenderTextureWithBlurInternalHook->m_original)(this_ptr, tex, box, data);
+    CHyprOpenGLImplRenderTextureWithBlurInternal_t(g_CHyprOpenGLImplRenderTextureWithBlurInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 }
 
-void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_ptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
+void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_ptr, Render::CRenderContext& ctx, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
 {
     using Render::IFramebuffer;
 
@@ -105,9 +106,9 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
     static auto FORCE_FULL_DAMAGE  = RuleOrConfigValue<Config::BOOL>(ConfigManager::ConfigType::FORCE_FULL_DAMAGE);
 
     if (!InCSurfacePassElementDraw)
-        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 
-    auto& render_data = g_pHyprRenderer->m_renderData;
+    auto& render_data = ctx.m_data;
 
     client_t client = nullptr;
     if (render_data.currentWindow)
@@ -117,11 +118,11 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
 
     auto client_context = ClientContext::GetContext(client);
     if (!client_context)
-        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 
     const int effect = EFFECT[client_context];
     if (effect == 0)
-        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 
     int vdf_map_debug_mode = VDF_MAP_DEBUG_MODE[client_context];
 
@@ -137,7 +138,7 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
         if (!data.blurredBG)
         {
             if (data.discardActive)
-                return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+                return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 
             if (fb->getTexture()->m_texID == tex->m_texID)
             {
@@ -151,7 +152,7 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
             {
                 case 1:
                     if (render_data.currentWindow && Fullscreen::controller()->isFullscreen(render_data.currentWindow.lock(), Fullscreen::eFullscreenMode::FSMODE_FULLSCREEN))
-                        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+                        return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
                     RenderLiquidGlass(*fb, tex, box, data, GetOrUpdateVDFMap(CLIENT_TEXTURE, data, client_context), client_context);
                     break;
                 case 2:
@@ -175,10 +176,10 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
             }
 
             render_data.currentFB->bind();
-            return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, fb->getTexture(), box, data);
+            return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, fb->getTexture(), box, data);
         }
         else if (vdf_map_debug_mode != 2)
-            CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+            CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 
         return;
     }
@@ -189,7 +190,7 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
     {
         case 1:
             if (render_data.currentWindow && Fullscreen::controller()->isFullscreen(render_data.currentWindow.lock(), Fullscreen::eFullscreenMode::FSMODE_FULLSCREEN))
-                return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+                return CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
             RenderLiquidGlass(*fb, render_data.currentFB->getTexture(), box, data, GetOrUpdateVDFMap(tex, data, client_context), client_context);
             break;
         case 2:
@@ -228,24 +229,37 @@ void HookCHyprOpenGLImplRenderTextureInternal(Render::GL::CHyprOpenGLImpl* this_
     pdata->primarySurfaceUVBottomRight = (monitorSpaceBox.pos() + monitorSpaceBox.size()) / render_data.pMonitor->m_transformedSize;
 
     render_data.currentFB->bind();
-    CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, fb->getTexture(), box, data);
+    CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, fb->getTexture(), box, data);
 
     pdata->primarySurfaceUVTopLeft     = uv_topleft;
     pdata->primarySurfaceUVBottomRight = uv_bottomright;
 
     if (vdf_map_debug_mode != 2)
-        CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, tex, box, data);
+        CHyprOpenGLImplRenderTextureInternal_t(g_CHyprOpenGLImplRenderTextureInternalHook->m_original)(this_ptr, ctx, tex, box, data);
 }
 
-float HookCWindowRounding(Desktop::View::CWindow *this_ptr)
+static Desktop::View::CWindow* GetPresentationWindow(Desktop::View::CWindowPresentation* presentation)
+{
+    for (const auto& window : Desktop::windowState()->windows())
+        if (window && &window->presentation() == presentation)
+            return window.get();
+
+    return nullptr;
+}
+
+float HookCWindowPresentationRounding(Desktop::View::CWindowPresentation* this_ptr)
 {
     static auto ROUNDING_LUA   = RuleOrDefaultValue<Config::INTEGER>(ConfigManager::ConfigType::ROUNDING_LUA, -1);
     static auto PROUNDINGPOWER = CConfigValue<Config::FLOAT>("decoration:rounding_power");
 
-    float rounding = ROUNDING_LUA[this_ptr];
-    if (rounding == -1)
-        return CWindowRounding_t(g_CWindowRoundingHook->m_original)(this_ptr);
+    auto window = GetPresentationWindow(this_ptr);
+    if (!window)
+        return CWindowPresentationRounding_t(g_CWindowPresentationRoundingHook->m_original)(this_ptr);
 
-    float rounding_power = this_ptr->m_ruleApplicator->roundingPower().valueOr(*PROUNDINGPOWER);
+    float rounding = ROUNDING_LUA[window];
+    if (rounding == -1)
+        return CWindowPresentationRounding_t(g_CWindowPresentationRoundingHook->m_original)(this_ptr);
+
+    float rounding_power = window->m_ruleApplicator->roundingPower().valueOr(*PROUNDINGPOWER);
     return rounding * (rounding_power / 2.0);
 }

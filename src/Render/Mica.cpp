@@ -33,7 +33,7 @@ void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox& box,cons
     if (data.currentLS)
         discard_alpha = data.currentLS->m_ruleApplicator->ignoreAlpha().valueOrDefault();
 
-    const float scale = g_pHyprRenderer->m_renderData.pMonitor->m_scale;
+    const float scale = RenderCtx().m_data.pMonitor->m_scale;
 
     auto  tint_color = TINT_COLOR[client_context];
     float brightness = BRIGHTNESS[client_context];
@@ -62,7 +62,7 @@ void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox& box,cons
     {
         shader->setUniformFloat2((eShaderUniform)CUSTOM_SHADER_TEXTURE_SCALE, size.x / box.width, size.y / box.height);
         shader->setUniformInt((eShaderUniform)CUSTOM_SHADER_MASK_TEXTURE, 1);
-        glActiveTexture(GL_TEXTURE1);
+        Render::GL::g_pHyprOpenGL->setActiveTexture(GL_TEXTURE1);
         mask->bind();
     }
     else
@@ -75,7 +75,7 @@ void RenderMica(IFramebuffer& fb, const SP<ITexture>& mask, const CBox& box,cons
     shader->setUniformFloat4((eShaderUniform)CUSTOM_SHADER_LUMINOSITY_COLOR, luminosity_color.r, luminosity_color.g, luminosity_color.b, luminosity_color.a);
     shader->setUniformFloat4(SHADER_TINT, tint_color.r, tint_color.g, tint_color.b, tint_color.a);
 
-    auto monitor_context = MonitorContext::GetContext(g_pHyprRenderer->m_renderData.pMonitor.get());
+    auto monitor_context = MonitorContext::GetContext(RenderCtx().m_data.pMonitor.get());
     auto blurred_background = monitor_context->GetBlurredBackground();
 
     RenderShader(fb, blurred_background, shader, data.damage);
